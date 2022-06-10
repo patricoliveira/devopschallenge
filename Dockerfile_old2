@@ -1,0 +1,26 @@
+FROM python:3.7.4-alpine3.10
+ADD . /app
+WORKDIR /app
+ADD ./requirements.txt /app/requirements.txt
+
+RUN set -ex \
+    && python -m venv /env \
+    && /env/bin/pip install --upgrade pip \
+    && /env/bin/pip install --no-cache-dir -r /app/requirements.txt \
+    && runDeps="$(scanelf --needed --nobanner --recursive /env \
+        | awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
+        | sort -u \
+        | xargs -r apk info --installed \
+        | sort -u)" \
+    && apk add --virtual rundeps $runDeps \
+    && apk del .build-deps && python3 manage.py migrate
+RUN sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['*']/" setup/settings.py
+RUN python manage.py makemigrations && python manage.py migrate && python manage.py createsuperuser --noinput
+
+
+ENV VIRTUAL_ENV /env
+ENV PATH /env/bin:$PATH
+
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

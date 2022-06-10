@@ -1,0 +1,23 @@
+# puxa a imagem oficial do python
+FROM python:3.7.4-alpine3.10
+#Seta as variaveis de ambiente 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SUPERUSER_EMAIL=admin@teste.com
+ENV DJANGO_SUPERUSER_USERNAME=admin
+ENV DJANGO_SUPERUSER_PASSWORD=admin123
+#Seta o diretorio da aplicacao
+WORKDIR /achallengew1
+#Instala as dependencias do python
+COPY requirements.txt /achallengew1/requirements.txt
+RUN pip install --upgrade pip && pip install -r /achallengew1/requirements.txt
+#Copia o conteudo da aplicacao para o diretorio definido anteriormente
+COPY . /achallengew1
+#Libera a execucao por qualquer host
+RUN sed -i "s/ALLOWED_HOSTS = \[\]/ALLOWED_HOSTS = \['*']/" setup/settings.py
+#Gera a base de dados da aplicacao e cria a conta do superusuario da aplicacao 
+RUN python manage.py makemigrations && python manage.py migrate && python manage.py createsuperuser --noinput
+#Expoe a porta 8000 do container
+EXPOSE 8000
+#Executa a aplicacao
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
